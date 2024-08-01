@@ -23,13 +23,9 @@ func NewTransactionService(transactionRepo repositories.TransactionRepository, a
 	return &transactionService{transactionRepo, accountRepo, entryRepo}
 }
 
-func (s *transactionService) Payment(userID, description string, amount float64, currency string) error {
-
-}
-
 func (s *transactionService) CreateDebitTransaction(userID, description string, amount float64, currency string) error {
 	transactionID := uuid.New().String()
-	debitAccountID := "rezky-account-id" // User's account ID
+	debitAccountID := "c85bbd7b-3c66-11ef-98cc-0242ac13000d" // User's account ID
 
 	// Check if the account has sufficient balance
 	balance, err := s.accountRepo.GetBalance(debitAccountID)
@@ -64,7 +60,7 @@ func (s *transactionService) CreateDebitTransaction(userID, description string, 
 	creditEntry := &models.Entry{
 		ID:            uuid.New().String(),
 		TransactionID: transactionID,
-		AccountID:     "vendor-account-id", // Vendor's account ID
+		AccountID:     "de8bb85d-5002-11ef-a20f-0242ac13000d", // Vendor's account ID
 		Amount:        amount,
 		Type:          "credit",
 	}
@@ -81,7 +77,7 @@ func (s *transactionService) CreateDebitTransaction(userID, description string, 
 		return err
 	}
 
-	if err := s.accountRepo.UpdateBalance("vendor-account-id", amount); err != nil {
+	if err := s.accountRepo.UpdateBalance("de8bb85d-5002-11ef-a20f-0242ac13000d", amount); err != nil {
 		return err
 	}
 
@@ -90,10 +86,10 @@ func (s *transactionService) CreateDebitTransaction(userID, description string, 
 
 func (s *transactionService) CreateCreditTransaction(userID, description string, amount float64, currency string) error {
 	transactionID := uuid.New().String()
-	creditAccountID := "rezky-account-id" // User's account ID
+	creditAccountID := "c85bbd7b-3c66-11ef-98cc-0242ac13000d" // User's account ID
 
 	// Perform the external debit
-	externalAccountID := "external-bank-account-id" // The external bank account ID
+	externalAccountID := "bb3faaae-5002-11ef-a20f-0242ac13000d" // The external bank account ID
 
 	transaction := &models.Transaction{
 		ID:          transactionID,
@@ -133,6 +129,10 @@ func (s *transactionService) CreateCreditTransaction(userID, description string,
 	}
 
 	if err := s.accountRepo.UpdateBalance(creditAccountID, amount); err != nil {
+		return err
+	}
+
+	if err := s.accountRepo.UpdateBalance(externalAccountID, -amount); err != nil {
 		return err
 	}
 
