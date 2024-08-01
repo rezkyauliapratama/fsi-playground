@@ -2,6 +2,8 @@ go 1.21.3
 
 use (
 	./libs/error
+	./libs/helper
 	./services/mini-bank
+	./services/transaction-service
 	./services/user-management-service
 )
