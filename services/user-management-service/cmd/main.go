@@ -22,6 +22,6 @@ func main() {
 	userService := services.NewUserService(userRepo)
 	handlers.RegisterUserHandlers(app, userService)
 
-	log.Fatal(app.Listen(":8000"))
+	log.Fatal(app.Listen(":8001"))
 
 }

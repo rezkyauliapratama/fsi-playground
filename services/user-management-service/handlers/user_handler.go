@@ -11,12 +11,13 @@ func RegisterUserHandlers(app *fiber.App, service services.UserService) {
 	app.Post("/register", func(c *fiber.Ctx) error {
 		var request struct {
 			PhoneNumber string `json:"phone_number"`
+			Email       string `json:"email"`
 			Password    string `json:"password"`
 		}
 		if err := c.BodyParser(&request); err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 		}
-		if err := service.Register(request.PhoneNumber, request.Password); err != nil {
+		if err := service.Register(request.PhoneNumber, request.Email, request.Password); err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 		}
 		return c.Status(fiber.StatusCreated).JSON(fiber.Map{"message": "User created"})

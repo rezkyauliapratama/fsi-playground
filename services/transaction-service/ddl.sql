@@ -12,7 +12,6 @@ CREATE TABLE transactions (
     id CHAR(36) NOT NULL PRIMARY KEY,
     user_id CHAR(36) NOT NULL,
     amount DECIMAL(10, 2) NOT NULL,
-    currency VARCHAR(3) NOT NULL,
     type VARCHAR(10) NOT NULL, -- 'debit' or 'credit'
     description VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

@@ -22,22 +22,22 @@ func NewTransactionRepository(db *sql.DB) TransactionRepository {
 }
 
 func (r *transactionRepository) Create(transaction *models.Transaction) error {
-	query := "INSERT INTO transactions (id, user_id, amount, currency, type, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())"
-	_, err := r.db.Exec(query, transaction.ID, transaction.UserID, transaction.Amount, transaction.Currency, transaction.Type, transaction.Description)
+	query := "INSERT INTO transactions (id, user_id, amount, type, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, NOW(), NOW())"
+	_, err := r.db.Exec(query, transaction.ID, transaction.UserID, transaction.Amount, transaction.Type, transaction.Description)
 	return err
 }
 
 func (r *transactionRepository) Update(transaction *models.Transaction) error {
-	query := "UPDATE transactions SET amount = ?, currency = ?, type = ?, description = ?, updated_at = NOW() WHERE id = ?"
-	_, err := r.db.Exec(query, transaction.Amount, transaction.Currency, transaction.Type, transaction.Description, transaction.ID)
+	query := "UPDATE transactions SET amount = ?, type = ?, description = ?, updated_at = NOW() WHERE id = ?"
+	_, err := r.db.Exec(query, transaction.Amount, transaction.Type, transaction.Description, transaction.ID)
 	return err
 }
 
 func (r *transactionRepository) GetByID(transactionID string) (*models.Transaction, error) {
 	var transaction models.Transaction
 	var createdAt, updatedAt []uint8
-	query := "SELECT id, user_id, amount, currency, type, description, created_at, updated_at FROM transactions WHERE id = ?"
-	err := r.db.QueryRow(query, transactionID).Scan(&transaction.ID, &transaction.UserID, &transaction.Amount, &transaction.Currency, &transaction.Type, &transaction.Description, &createdAt, &updatedAt)
+	query := "SELECT id, user_id, amount, type, description, created_at, updated_at FROM transactions WHERE id = ?"
+	err := r.db.QueryRow(query, transactionID).Scan(&transaction.ID, &transaction.UserID, &transaction.Amount, &transaction.Type, &transaction.Description, &createdAt, &updatedAt)
 	if err != nil {
 		return nil, err
 	}

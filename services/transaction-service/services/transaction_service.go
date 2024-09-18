@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"github.com/rezkyauliapratama/fsi-playground/services/transaction-service/models"
@@ -9,8 +10,8 @@ import (
 )
 
 type TransactionService interface {
-	CreateDebitTransaction(userID, description string, amount float64, currency string) error
-	CreateCreditTransaction(userID, description string, amount float64, currency string) error
+	CreateDebitTransaction(userID, creditAccountID, description string, amount float64) error
+	CreateCreditTransaction(userID, description string, amount float64) error
 }
 
 type transactionService struct {
@@ -23,9 +24,13 @@ func NewTransactionService(transactionRepo repositories.TransactionRepository, a
 	return &transactionService{transactionRepo, accountRepo, entryRepo}
 }
 
-func (s *transactionService) CreateDebitTransaction(userID, description string, amount float64, currency string) error {
+func (s *transactionService) CreateDebitTransaction(userID, creditAccountID, description string, amount float64) error {
 	transactionID := uuid.New().String()
-	debitAccountID := "c85bbd7b-3c66-11ef-98cc-0242ac13000d" // User's account ID
+	debitAccountID, err := s.accountRepo.GetAccountByUser(userID, "MAIN") // User's account ID
+	if err != nil {
+		return err
+	}
+	fmt.Printf("%s", debitAccountID)
 
 	// Check if the account has sufficient balance
 	balance, err := s.accountRepo.GetBalance(debitAccountID)
@@ -40,8 +45,7 @@ func (s *transactionService) CreateDebitTransaction(userID, description string, 
 		ID:          transactionID,
 		UserID:      userID,
 		Amount:      amount,
-		Currency:    currency,
-		Type:        "debit",
+		Type:        "DEBIT",
 		Description: description,
 	}
 
@@ -54,15 +58,15 @@ func (s *transactionService) CreateDebitTransaction(userID, description string, 
 		TransactionID: transactionID,
 		AccountID:     debitAccountID,
 		Amount:        amount,
-		Type:          "debit",
+		Type:          "DEBIT",
 	}
 
 	creditEntry := &models.Entry{
 		ID:            uuid.New().String(),
 		TransactionID: transactionID,
-		AccountID:     "de8bb85d-5002-11ef-a20f-0242ac13000d", // Vendor's account ID
+		AccountID:     creditAccountID, // Vendor's account ID
 		Amount:        amount,
-		Type:          "credit",
+		Type:          "CREDIT",
 	}
 
 	if err := s.entryRepo.Create(debitEntry); err != nil {
@@ -77,14 +81,14 @@ func (s *transactionService) CreateDebitTransaction(userID, description string, 
 		return err
 	}
 
-	if err := s.accountRepo.UpdateBalance("de8bb85d-5002-11ef-a20f-0242ac13000d", amount); err != nil {
+	if err := s.accountRepo.UpdateBalance(creditAccountID, amount); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (s *transactionService) CreateCreditTransaction(userID, description string, amount float64, currency string) error {
+func (s *transactionService) CreateCreditTransaction(userID, description string, amount float64) error {
 	transactionID := uuid.New().String()
 	creditAccountID := "c85bbd7b-3c66-11ef-98cc-0242ac13000d" // User's account ID
 
@@ -95,7 +99,6 @@ func (s *transactionService) CreateCreditTransaction(userID, description string,
 		ID:          transactionID,
 		UserID:      userID,
 		Amount:      amount,
-		Currency:    currency,
 		Type:        "credit",
 		Description: description,
 	}

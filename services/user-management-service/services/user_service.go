@@ -9,7 +9,7 @@ import (
 )
 
 type UserService interface {
-	Register(phoneNumber, password string) error
+	Register(phoneNumber, email, password string) error
 	Login(phoneNumber, password string) (string, error)
 }
 
@@ -21,7 +21,7 @@ func NewUserService(repo repositories.UserRepository) UserService {
 	return &userService{repo}
 }
 
-func (s *userService) Register(phoneNumber, password string) error {
+func (s *userService) Register(phoneNumber, email, password string) error {
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return err
@@ -29,6 +29,7 @@ func (s *userService) Register(phoneNumber, password string) error {
 	user := &models.User{
 		ID:          uuid.New().String(),
 		PhoneNumber: phoneNumber,
+		Email:       email,
 		Password:    string(hashedPassword),
 	}
 	return s.repo.Create(user)

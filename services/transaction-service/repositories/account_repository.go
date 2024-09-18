@@ -1,10 +1,13 @@
 package repositories
 
-import "database/sql"
+import (
+	"database/sql"
+)
 
 type AccountRepository interface {
 	GetBalance(accountID string) (float64, error)
 	UpdateBalance(accountID string, amount float64) error
+	GetAccountByUser(userID string, accountType string) (string, error)
 }
 
 type accountRepository struct {
@@ -31,6 +34,6 @@ func (r *accountRepository) UpdateBalance(accountID string, amount float64) erro
 func (r *accountRepository) GetAccountByUser(userID string, accountType string) (string, error) {
 	var accountId string
 	query := "Select id from accounts WHERE user_id = ? and type = ?"
-	err := r.db.QueryRow(query, userID, accountType).Scan(accountId)
+	err := r.db.QueryRow(query, userID, accountType).Scan(&accountId)
 	return accountId, err
 }
