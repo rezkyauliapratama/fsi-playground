@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: mail_db
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: mail
+      MYSQL_USER: admin
+      MYSQL_PASSWORD: root
+    ports:
+      - "4002:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    extra_hosts:
+        host.docker.internal: host-gateway
+    networks:
+      - mysql_network
+  mailcatcher:
+    restart: on-failure
+    image: dockage/mailcatcher:0.9.0
+    ports:
+    - "1080:1080"
+    - "1025:1025"
+
+volumes:
+  mysql_data:
+
+networks:
+  mysql_network:
