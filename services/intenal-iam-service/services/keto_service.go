@@ -21,8 +21,8 @@ func NewKetoService(repo *repositories.KetoRepository, logger *zap.Logger) *Keto
 }
 
 // retryLogic retries a function that returns a slice of strings with a delay between retries
-func retryLogic(attempts int, delay time.Duration, fn func() ([]string, error), logger *zap.Logger) ([]string, error) {
-	var result []string
+func retryLogic(attempts int, delay time.Duration, fn func() ([]map[string]string, error), logger *zap.Logger) ([]map[string]string, error) {
+	var result []map[string]string
 	var err error
 	for i := 0; i < attempts; i++ {
 		result, err = fn()
@@ -45,9 +45,7 @@ func (s *KetoService) GetUserModules(ctx context.Context, userID string) (map[st
 	s.logger.Info("Fetching roles for user", zap.String("userID", userID))
 
 	// Step 1: Fetch all roles for the user
-	roles, roleErr := retryLogic(3, 1*time.Second, func() ([]string, error) {
-		return s.repo.FetchUserRoles(ctx, userID)
-	}, s.logger)
+	roles, roleErr := s.repo.FetchUserRoles(ctx, userID)
 	if roleErr != nil {
 		return nil, roleErr
 	}
@@ -55,9 +53,7 @@ func (s *KetoService) GetUserModules(ctx context.Context, userID string) (map[st
 	s.logger.Info("Fetching units for user", zap.String("userID", userID))
 
 	// Step 2: Fetch all units associated with the user based on roles
-	units, unitErr := retryLogic(3, 1*time.Second, func() ([]string, error) {
-		return s.repo.FetchUserUnits(ctx, userID, roles)
-	}, s.logger)
+	units, unitErr := s.repo.FetchUserUnits(ctx, userID, roles)
 	if unitErr != nil {
 		return nil, unitErr
 	}
@@ -69,17 +65,20 @@ func (s *KetoService) GetUserModules(ctx context.Context, userID string) (map[st
 	go func() {
 		defer wg.Done()
 		for _, unit := range units {
-			for _, role := range roles {
-				modulesForUnitRole, moduleErr := retryLogic(3, 1*time.Second, func() ([]string, error) {
-					return s.repo.FetchAccessibleModules(ctx, unit, role)
+			for role := range roles {
+				modulesForUnitRole, moduleErr := retryLogic(3, 1*time.Second, func() ([]map[string]string, error) {
+					// Now using the role variable in the FetchAccessibleModules call
+					return s.repo.FetchAccessibleModules(ctx, []string{unit}, map[string]struct{}{role: {}})
 				}, s.logger)
 				if moduleErr != nil {
 					errorChan <- moduleErr
 					return
 				}
 				// Aggregate the modules by their action (view/manage)
-				for action, modules := range groupModulesByAction(modulesForUnitRole) {
-					modulesByAction[action] = append(modulesByAction[action], modules...)
+				for _, moduleData := range modulesForUnitRole {
+					action := moduleData["action"]
+					module := moduleData["module"]
+					modulesByAction[action] = append(modulesByAction[action], module)
 				}
 			}
 		}
@@ -102,26 +101,4 @@ func (s *KetoService) GetUserModules(ctx context.Context, userID string) (map[st
 		s.logger.Info("Successfully fetched modules for user", zap.String("userID", userID), zap.Any("modules", modules))
 		return modules, nil
 	}
-}
-
-// groupModulesByAction helps to categorize modules by their action (view, manage)
-func groupModulesByAction(modules []string) map[string][]string {
-	modulesByAction := make(map[string][]string)
-	// Assuming you have a way to distinguish between view and manage actions
-	// For example, you can infer this from the module name or a different field
-	for _, module := range modules {
-		// Example of categorization logic (you can modify this based on actual module details)
-		if isManageAction(module) {
-			modulesByAction["manage"] = append(modulesByAction["manage"], module)
-		} else {
-			modulesByAction["view"] = append(modulesByAction["view"], module)
-		}
-	}
-	return modulesByAction
-}
-
-// Example function that determines if a module is "manage" or "view"
-func isManageAction(module string) bool {
-	// Logic to determine if it's a manage action based on the module (this is just an example)
-	return true // Replace with real logic
 }

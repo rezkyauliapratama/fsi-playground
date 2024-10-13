@@ -5,36 +5,40 @@ import (
 	"internal-iam-service/repositories"
 	"internal-iam-service/services"
 	"log"
-	"os"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/recover"
 	"go.uber.org/zap"
 )
 
 func main() {
-	// Initialize Zap logger
-	logger, err := zap.NewProduction()
+	// Initialize a new Fiber instance
+	app := fiber.New(fiber.Config{
+		Prefork:       true, // Optional: Enable Prefork if you want to scale with multiple processes
+		CaseSensitive: true, // Routes are case-sensitive
+		StrictRouting: true, // Strict routing ensures /foo and /foo/ are treated differently
+	})
+
+	// Add middleware
+	app.Use(recover.New()) // Automatically recover from panics
+
+	// Initialize logger
+	logger, err := zap.NewDevelopment()
 	if err != nil {
 		log.Fatalf("Failed to initialize logger: %v", err)
 	}
-	defer logger.Sync() // Flushes the logger buffer, should be called at the end
+	defer logger.Sync()
 
-	// Initialize the Fiber web application
-	app := fiber.New()
-
-	// Initialize repository, service, and handler layers with logger
+	// Initialize repository, service, and handler
 	ketoRepo := repositories.NewKetoRepository(logger)
 	ketoService := services.NewKetoService(ketoRepo, logger)
-	userHandler := handlers.NewUserHandler(ketoService, logger)
+	ketoHandler := handlers.NewKetoHandler(ketoService, logger)
 
-	// Define routes for the API
-	app.Get("/users/:id/modules", userHandler.GetUserModulesHandler)
+	// Define routes
+	app.Get("/users/:userID/modules", ketoHandler.GetUserModules)
 
-	// Start the Fiber app on the specified port
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080" // Default port if not set
+	// Start the Fiber app
+	if err := app.Listen(":8080"); err != nil {
+		logger.Fatal("Failed to start server", zap.Error(err))
 	}
-	logger.Info("Starting server", zap.String("port", port))
-	log.Fatal(app.Listen(":" + port))
 }

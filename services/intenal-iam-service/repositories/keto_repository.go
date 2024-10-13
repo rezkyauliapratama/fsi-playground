@@ -4,20 +4,19 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"sync"
 	"time"
 
 	keto "github.com/ory/keto-client-go"
 	"go.uber.org/zap"
 )
 
-// KetoRepository interacts with the Keto API with logger
+// KetoRepository handles interaction with the Keto API
 type KetoRepository struct {
 	client *keto.APIClient
 	logger *zap.Logger
 }
 
-// NewKetoRepository initializes a new KetoRepository with connection pooling, timeouts, and logger
+// NewKetoRepository initializes a new KetoRepository with connection pooling and logger
 func NewKetoRepository(logger *zap.Logger) *KetoRepository {
 	ketoConfig := keto.NewConfiguration()
 	ketoConfig.HTTPClient = &http.Client{
@@ -35,8 +34,8 @@ func NewKetoRepository(logger *zap.Logger) *KetoRepository {
 }
 
 // FetchUserRoles fetches all roles associated with a user from Keto
-func (r *KetoRepository) FetchUserRoles(ctx context.Context, userID string) ([]string, error) {
-	r.logger.Info("Fetching roles from Keto", zap.String("userID", userID))
+func (r *KetoRepository) FetchUserRoles(ctx context.Context, userID string) (map[string]struct{}, error) {
+	r.logger.Debug("Fetching roles from Keto", zap.String("userID", userID))
 	response, _, err := r.client.RelationshipApi.GetRelationships(ctx).
 		Namespace("users").
 		Object(fmt.Sprintf("user:%s", userID)).
@@ -48,84 +47,75 @@ func (r *KetoRepository) FetchUserRoles(ctx context.Context, userID string) ([]s
 		return nil, fmt.Errorf("failed to fetch user roles: %w", err)
 	}
 
-	var roles []string
+	roles := make(map[string]struct{})
 	for _, tuple := range response.RelationTuples {
-		roles = append(roles, *tuple.SubjectId)
+		roles[*tuple.SubjectId] = struct{}{}
 	}
 
-	r.logger.Info("Fetched roles for user", zap.String("userID", userID), zap.Strings("roles", roles))
+	r.logger.Debug("Fetched roles for user", zap.String("userID", userID), zap.Int("roleCount", len(roles)))
 	return roles, nil
 }
 
-// FetchUserUnits fetches all units associated with a user from Keto based on roles using subject_set
-func (r *KetoRepository) FetchUserUnits(ctx context.Context, userID string, roles []string) ([]string, error) {
+// FetchUserUnits fetches all units associated with a user based on their roles
+func (r *KetoRepository) FetchUserUnits(ctx context.Context, userID string, roles map[string]struct{}) ([]string, error) {
 	var units []string
-	r.logger.Info("Fetching units for user", zap.String("userID", userID))
+	r.logger.Debug("Fetching units for user", zap.String("userID", userID))
 
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	errorsChan := make(chan error, len(roles))
+	for role := range roles {
+		r.logger.Debug("Fetching units for role", zap.String("role", role))
 
-	for _, role := range roles {
-		wg.Add(1)
-		go func(role string) {
-			defer wg.Done()
-			r.logger.Info("Fetching units for role", zap.String("role", role))
+		response, _, err := r.client.RelationshipApi.GetRelationships(ctx).
+			Namespace("units").
+			Relation("member").
+			SubjectSetNamespace("users").
+			SubjectSetObject(fmt.Sprintf("user:%s", userID)).
+			SubjectSetRelation(role).
+			Execute()
 
+		if err != nil {
+			r.logger.Error("Failed to fetch user units", zap.String("userID", userID), zap.String("role", role), zap.Error(err))
+			return nil, fmt.Errorf("failed to fetch user units: %w", err)
+		}
+
+		for _, tuple := range response.RelationTuples {
+			units = append(units, tuple.Object)
+		}
+	}
+
+	r.logger.Debug("Fetched units for user", zap.String("userID", userID), zap.Strings("units", units))
+	return units, nil
+}
+
+// FetchAccessibleModules fetches all modules accessible by the user's unit and role, using dynamic actions
+func (r *KetoRepository) FetchAccessibleModules(ctx context.Context, units []string, roles map[string]struct{}) ([]map[string]string, error) {
+	r.logger.Debug("Fetching accessible modules")
+	var modules []map[string]string
+
+	for _, unit := range units {
+		for role := range roles {
+			// Fetch all dynamic actions for each role-unit combination
 			response, _, err := r.client.RelationshipApi.GetRelationships(ctx).
-				Namespace("units").
-				Relation("member").
-				SubjectSetNamespace("users").
-				SubjectSetObject(fmt.Sprintf("user:%s", userID)).
+				Namespace("modules").
+				SubjectSetNamespace("units").
+				SubjectSetObject(unit).
 				SubjectSetRelation(role).
 				Execute()
 
 			if err != nil {
-				r.logger.Error("Failed to fetch user units", zap.String("userID", userID), zap.String("role", role), zap.Error(err))
-				errorsChan <- err
-				return
+				r.logger.Error("Failed to fetch modules for unit and role", zap.String("unit", unit), zap.String("role", role), zap.Error(err))
+				return nil, fmt.Errorf("failed to fetch modules: %w", err)
 			}
 
-			mu.Lock()
+			// Collect actions and modules
 			for _, tuple := range response.RelationTuples {
-				units = append(units, tuple.Object)
+				modules = append(modules, map[string]string{
+					"action": tuple.Relation, // Dynamic action (e.g., "manage", "view", etc.)
+					"module": tuple.Object,
+				})
 			}
-			mu.Unlock()
-		}(role)
+		}
 	}
 
-	wg.Wait()
-	close(errorsChan)
-
-	if len(errorsChan) > 0 {
-		return nil, fmt.Errorf("errors occurred while fetching units for user %s", userID)
-	}
-
-	r.logger.Info("Fetched units for user", zap.String("userID", userID), zap.Strings("units", units))
-	return units, nil
-}
-
-// FetchAccessibleModules fetches all modules accessible by the user's unit and role using subject_set
-func (r *KetoRepository) FetchAccessibleModules(ctx context.Context, unit, role string) ([]string, error) {
-	r.logger.Info("Fetching accessible modules", zap.String("unit", unit), zap.String("role", role))
-
-	response, _, err := r.client.RelationshipApi.GetRelationships(ctx).
-		Namespace("modules").
-		SubjectSetNamespace("units").
-		SubjectSetObject(unit).
-		SubjectSetRelation("member").
-		Execute()
-
-	if err != nil {
-		r.logger.Error("Failed to fetch accessible modules", zap.String("unit", unit), zap.String("role", role), zap.Error(err))
-		return nil, fmt.Errorf("failed to fetch accessible modules: %w", err)
-	}
-
-	var modules []string
-	for _, tuple := range response.RelationTuples {
-		modules = append(modules, tuple.Object)
-	}
-
-	r.logger.Info("Fetched modules for unit", zap.String("unit", unit), zap.String("role", role), zap.Strings("modules", modules))
+	r.logger.Debug("Fetched accessible modules", zap.Int("moduleCount", len(modules)))
 	return modules, nil
 }

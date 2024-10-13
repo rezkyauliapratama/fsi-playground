@@ -38,15 +38,35 @@
       }
     },
     {
+      "namespace": "units",
+      "object": "unit:hr",
+      "relation": "member",
+      "subject_set": {
+        "namespace": "users",
+        "object": "user:clara",
+        "relation": "role:employee"
+      }
+    },
+    {
       "namespace": "modules",
       "object": "module:finance:payments",
       "relation": "manage",
       "subject_set": {
         "namespace": "units",
         "object": "unit:finance",
-        "relation": "member"
+        "relation": "role:manager"
       }
     },
+    {
+        "namespace": "modules",
+        "object": "module:finance:reports",
+        "relation": "manage",
+        "subject_set": {
+          "namespace": "units",
+          "object": "unit:finance",
+          "relation": "role:manager"
+        }
+      },
     {
       "namespace": "modules",
       "object": "module:finance:reports",
@@ -54,9 +74,10 @@
       "subject_set": {
         "namespace": "units",
         "object": "unit:finance",
-        "relation": "member"
+        "relation": "role:employee"
       }
     },
+
     {
       "namespace": "modules",
       "object": "module:hr:payroll",
@@ -64,7 +85,7 @@
       "subject_set": {
         "namespace": "units",
         "object": "unit:hr",
-        "relation": "member"
+        "relation": "role:manager"
       }
     },
     {
@@ -74,7 +95,17 @@
       "subject_set": {
         "namespace": "units",
         "object": "unit:hr",
-        "relation": "member"
+        "relation": "role:employee"
       }
-    }
+    },
+    {
+        "namespace": "modules",
+        "object": "module:hr:recruitment",
+        "relation": "view",
+        "subject_set": {
+          "namespace": "units",
+          "object": "unit:finance",
+          "relation": "role:manager"
+        }
+      }
   ]
