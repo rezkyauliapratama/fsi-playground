@@ -56,8 +56,6 @@ func createRelationship(apiURL string, relation RelationTuple) error {
 		return fmt.Errorf("error marshalling JSON: %v", err)
 	}
 
-	fmt.Printf("request: %v \n", relation)
-
 	// Make the request to Keto Admin API (using PUT)
 	req, err := http.NewRequest(http.MethodPut, apiURL+"/admin/relation-tuples", bytes.NewBuffer(jsonData))
 	if err != nil {
@@ -71,8 +69,6 @@ func createRelationship(apiURL string, relation RelationTuple) error {
 		return fmt.Errorf("error making request: %v", err)
 	}
 	defer resp.Body.Close()
-
-	fmt.Printf("response: %v \n", resp)
 
 	// Check the response status
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
