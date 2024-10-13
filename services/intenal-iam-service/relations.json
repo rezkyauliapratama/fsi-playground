@@ -1,0 +1,80 @@
+[
+    {
+      "namespace": "users",
+      "object": "user:rezky",
+      "relation": "role",
+      "subject_id": "role:manager"
+    },
+    {
+      "namespace": "users",
+      "object": "user:andrew",
+      "relation": "role",
+      "subject_id": "role:employee"
+    },
+    {
+      "namespace": "users",
+      "object": "user:clara",
+      "relation": "role",
+      "subject_id": "role:employee"
+    },
+    {
+      "namespace": "units",
+      "object": "unit:finance",
+      "relation": "member",
+      "subject_set": {
+        "namespace": "users",
+        "object": "user:rezky",
+        "relation": "role:manager"
+      }
+    },
+    {
+      "namespace": "units",
+      "object": "unit:hr",
+      "relation": "member",
+      "subject_set": {
+        "namespace": "users",
+        "object": "user:andrew",
+        "relation": "role:employee"
+      }
+    },
+    {
+      "namespace": "modules",
+      "object": "module:finance:payments",
+      "relation": "manage",
+      "subject_set": {
+        "namespace": "units",
+        "object": "unit:finance",
+        "relation": "member"
+      }
+    },
+    {
+      "namespace": "modules",
+      "object": "module:finance:reports",
+      "relation": "view",
+      "subject_set": {
+        "namespace": "units",
+        "object": "unit:finance",
+        "relation": "member"
+      }
+    },
+    {
+      "namespace": "modules",
+      "object": "module:hr:payroll",
+      "relation": "manage",
+      "subject_set": {
+        "namespace": "units",
+        "object": "unit:hr",
+        "relation": "member"
+      }
+    },
+    {
+      "namespace": "modules",
+      "object": "module:hr:recruitment",
+      "relation": "view",
+      "subject_set": {
+        "namespace": "units",
+        "object": "unit:hr",
+        "relation": "member"
+      }
+    }
+  ]

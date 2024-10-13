@@ -7,4 +7,5 @@ use (
 	./services/transaction-service
 	./services/user-management-service
 	./services/mail-service
+	./services/intenal-iam-service
 )
