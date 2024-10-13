@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	keto "github.com/ory/keto-client-go"
@@ -61,25 +62,43 @@ func (r *KetoRepository) FetchUserUnits(ctx context.Context, userID string, role
 	var units []string
 	r.logger.Info("Fetching units for user", zap.String("userID", userID))
 
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	errorsChan := make(chan error, len(roles))
+
 	for _, role := range roles {
-		r.logger.Info("Fetching units for role", zap.String("role", role))
+		wg.Add(1)
+		go func(role string) {
+			defer wg.Done()
+			r.logger.Info("Fetching units for role", zap.String("role", role))
 
-		response, _, err := r.client.RelationshipApi.GetRelationships(ctx).
-			Namespace("units").
-			Relation("member").
-			SubjectSetNamespace("users").
-			SubjectSetObject(fmt.Sprintf("user:%s", userID)).
-			SubjectSetRelation(role).
-			Execute()
+			response, _, err := r.client.RelationshipApi.GetRelationships(ctx).
+				Namespace("units").
+				Relation("member").
+				SubjectSetNamespace("users").
+				SubjectSetObject(fmt.Sprintf("user:%s", userID)).
+				SubjectSetRelation(role).
+				Execute()
 
-		if err != nil {
-			r.logger.Error("Failed to fetch user units", zap.String("userID", userID), zap.String("role", role), zap.Error(err))
-			return nil, fmt.Errorf("failed to fetch user units: %w", err)
-		}
+			if err != nil {
+				r.logger.Error("Failed to fetch user units", zap.String("userID", userID), zap.String("role", role), zap.Error(err))
+				errorsChan <- err
+				return
+			}
 
-		for _, tuple := range response.RelationTuples {
-			units = append(units, tuple.Object)
-		}
+			mu.Lock()
+			for _, tuple := range response.RelationTuples {
+				units = append(units, tuple.Object)
+			}
+			mu.Unlock()
+		}(role)
+	}
+
+	wg.Wait()
+	close(errorsChan)
+
+	if len(errorsChan) > 0 {
+		return nil, fmt.Errorf("errors occurred while fetching units for user %s", userID)
 	}
 
 	r.logger.Info("Fetched units for user", zap.String("userID", userID), zap.Strings("units", units))
