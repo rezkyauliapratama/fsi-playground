@@ -1,0 +1,58 @@
+datadir="/var/lib/proxysql"
+
+admin_variables =
+{
+	admin_credentials="admin:admin"
+	mysql_ifaces="0.0.0.0:6032"
+	refresh_interval=2000
+}
+
+mysql_variables =
+{
+	connect_timeout_server=5000
+	default_charset="utf8"
+	have_compress=false
+	monitor_history=300000
+	monitor_connect_interval=120000
+	monitor_connect_timeout=200
+	monitor_ping_interval=60000
+	monitor_ping_timeout=150
+	monitor_username="monitor"
+	monitor_password="monitor"
+	monitor_query_variables="SELECT * FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES"
+	monitor_query_status="SELECT * FROM INFORMATION_SCHEMA.GLOBAL_STATUS"
+	monitor_query_interval=30000
+	monitor_query_timeout=150
+	monitor_timer_cached=false
+	ping_interval_server=2000
+	ping_timeout_server=150
+	default_schema="transaction"
+	poll_timeout=1000
+	poll_timeout_on_failure=150
+	server_capabilities=47627
+	server_version="5.1.31"
+	commands_stats=true
+	servers_stats=false
+	stacksize=2097152
+	threads=1
+    max_connections=100
+}
+
+mysql_users = 
+(
+	{
+		username = "admin"
+		password = "root"
+		active = 1
+        default_hostgroup = 0
+	}
+)
+
+mysql_servers =
+(
+	{
+		address = "mysql"
+		port = 3306
+		hostgroup = 0
+	}
+)

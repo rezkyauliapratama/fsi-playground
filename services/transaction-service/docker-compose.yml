@@ -17,9 +17,69 @@ services:
         host.docker.internal: host-gateway
     networks:
       - mysql_network
+  prometheus:
+    container_name: prometheus
+    image: prom/prometheus:latest
+    volumes:
+        - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+        - /etc/localtime:/etc/localtime:ro
+    ports:
+      - 9090:9090
+    networks:
+      - mysql_network
+    # links:
+    #   - mysqld-exporter
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=secret
+      - GF_ALERTING_EXECUTE_ALERTS=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - 3000:3000
+    links:
+      - prometheus
+    depends_on:
+      - prometheus
+    networks:
+      - mysql_network
+
+  mysqld-exporter:
+    image: prom/mysqld-exporter
+    container_name: mysqld-exporter
+    restart: unless-stopped
+    volumes:
+        - ./mysql-exporter/config.my-cnf:/cfg/config.my-cnf
+    command:
+        - --config.my-cnf=/cfg/config.my-cnf
+    ports:
+      - 9104:9104
+    links:
+      - mysql
+    depends_on:
+      - mysql
+    networks:
+      - mysql_network
+  proxysql:
+    image: proxysql/proxysql:latest
+    container_name: proxysql-mysql
+    ports:
+      - 6032:6032
+      - 6033:6033
+    extra_hosts:
+        host.docker.internal: host-gateway
+    volumes:
+      - ./proxysql/proxysql.cnf:/etc/proxysql.cnf
+    networks:
+      - mysql_network
 
 volumes:
   mysql_data:
+  prometheus_data: {}
+  grafana_data: {}
 
 networks:
   mysql_network:
